@@ -43,7 +43,7 @@
             object-fit: contain;
             opacity: 0;
             transform: scale(0.95) rotateY(10deg);
-            transition: all 0.8 cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
             filter: brightness(0.8) contrast(1.1);
             box-shadow: 0 0 30px rgba(0,0,0,0.8);
         }
@@ -66,7 +66,7 @@
             height: 4px;
             background: rgba(255,255,255,0.05);
             border-radius: 10px;
-            overflow: visible; /* 让泡泡能凸出来 */
+            overflow: visible;
         }
 
         #progress-bar {
@@ -147,9 +147,18 @@
             cursor: pointer;
             box-shadow: 0 0 15px var(--neon-blue);
             transition: 0.3s;
+            /* 新增禁用状态样式 */
+        }
+        
+        #start-btn.disabled {
+            border-color: #555;
+            color: #888;
+            box-shadow: none;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
-        #start-btn:hover {
+        #start-btn:hover:not(.disabled) {
             background: var(--neon-blue);
             color: black;
             box-shadow: 0 0 40px var(--neon-blue);
@@ -161,20 +170,17 @@
 </head>
 <body>
 
-    <!-- 添加背景音乐：如果你的文件名是中文，建议改为 bgm.mp3 或确保编码正确 -->
     <audio id="bgm" loop preload="auto">
         <source src="bgm.mp3" type="audio/mpeg">
-        Your browser does not support the audio element.
     </audio>
 
     <div id="intro">
-        <button id="start-btn">解密 29 组核心记忆数据</button>
+        <!-- 按钮初始状态设为 loading 内容 -->
+        <button id="start-btn" class="disabled">资源加载中 0%</button>
     </div>
 
     <div id="main-content" class="hidden">
-        <div id="gallery">
-            </div>
-
+        <div id="gallery"></div>
         <div class="progress-wrapper">
             <div class="progress-container">
                 <div id="progress-bar"></div>
@@ -198,8 +204,8 @@
                 <circle cx="50" cy="30" r="10" opacity="0.9"/>
             </g>
         </svg>
-        <h1 style="text-shadow: 0 0 15px var(--neon-pink); margin-top: 20px;">晓晓，情人节快乐哦 ✧(◍˃̶ᗜ˂̶◍)✩</h1>
-        <p style="color: #ccc;">全世界里只有你~</p>
+        <h1 style="text-shadow: 0 0 15px var(--neon-pink); margin-top: 20px;">情人节快乐</h1>
+        <p style="color: #ccc;">29 个瞬间，每一秒都是我爱你的证据。</p>
     </div>
 
     <script>
@@ -207,33 +213,61 @@
         const progressBar = document.getElementById('progress-bar');
         const bubble = document.getElementById('bubble');
         const percentTxt = document.getElementById('percent');
-        const totalPhotos = 29;
-        const bgm = document.getElementById('bgm'); // 获取音频元素
+        const startBtn = document.getElementById('start-btn');
+        const bgm = document.getElementById('bgm');
         
-        // 动态生成29个图片标签
-        for (let i = 1; i <= totalPhotos; i++) {
-            const img = document.createElement('img');
-            img.src = `${i}.jpg`; // 确保你的图片命名为 1.jpg, 2.jpg ... 29.jpg
-            img.className = 'photo';
-            if (i === 1) img.classList.add('active');
-            gallery.appendChild(img);
+        const totalPhotos = 29;
+        let loadedPhotos = 0;
+        let photos = []; // 用于存储引用
+
+        // 更新加载进度
+        function updateLoadingProgress() {
+            loadedPhotos++;
+            // 计算加载百分比
+            const percent = Math.floor((loadedPhotos / totalPhotos) * 100);
+            startBtn.innerText = `资源加载中 ${percent}%`;
+            
+            // 如果全部加载完成
+            if (loadedPhotos >= totalPhotos) {
+                startBtn.classList.remove('disabled');
+                startBtn.innerText = "解密 29 组核心记忆数据";
+                // 绑定点击事件
+                startBtn.onclick = startGame;
+            }
         }
 
-        const photos = document.querySelectorAll('.photo');
+        // 动态生成并预加载图片
+        for (let i = 1; i <= totalPhotos; i++) {
+            const img = document.createElement('img');
+            img.className = 'photo';
+            if (i === 1) img.classList.add('active');
+            
+            // 关键：在设置 src 之前绑定 onload 事件
+            img.onload = updateLoadingProgress;
+            img.onerror = function() {
+                console.log(`第 ${i} 张图片加载失败，请检查文件名`);
+                updateLoadingProgress(); // 即使失败也算作完成，防止卡在 99%
+            };
+            
+            img.src = `${i}.jpg`;
+            gallery.appendChild(img);
+        }
+        
+        // 重新获取一下 DOM 列表，因为上面刚刚添加进去
+        photos = document.querySelectorAll('.photo');
         let currentPhotoIdx = 0;
 
-        document.getElementById('start-btn').onclick = function() {
-            // 尝试播放音乐
-            bgm.play().catch(e => console.log("播放失败，请检查浏览器设置或文件路径", e));
-
+        function startGame() {
+            bgm.play().catch(e => console.log("播放需要交互"));
             document.getElementById('intro').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
             startRomance();
-        };
+        }
 
         function startRomance() {
             let progress = 0;
-            const duration = 20000; // 总时长设定为 20 秒，让29张照片能看清楚
+            // 如果觉得图片切换太快，可以把 20000 改成 30000（30秒）
+            const duration = 20000; 
             const intervalTime = 50; 
             const step = (intervalTime / duration) * 100;
 
@@ -241,16 +275,15 @@
                 progress += step;
                 if (progress > 100) progress = 100;
 
-                // 更新进度条和泡泡位置
                 progressBar.style.width = progress + '%';
                 bubble.style.left = progress + '%';
                 percentTxt.innerText = Math.floor(progress);
 
-                // 计算当前应该显示哪张照片 (29张平分100%)
                 const nextIdx = Math.floor((progress / 100) * totalPhotos);
                 if (nextIdx !== currentPhotoIdx && nextIdx < totalPhotos) {
-                    photos[currentPhotoIdx].classList.remove('active');
-                    photos[nextIdx].classList.add('active');
+                    // 防止越界
+                    if(photos[currentPhotoIdx]) photos[currentPhotoIdx].classList.remove('active');
+                    if(photos[nextIdx]) photos[nextIdx].classList.add('active');
                     currentPhotoIdx = nextIdx;
                 }
 
@@ -262,9 +295,7 @@
         }
 
         function finishSequence() {
-            // 泡泡爆裂
             bubble.classList.add('burst');
-            
             setTimeout(() => {
                 document.getElementById('main-content').classList.add('fade-out');
                 setTimeout(() => {
@@ -275,5 +306,4 @@
         }
     </script>
 </body>
-
 </html>
